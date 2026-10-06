@@ -1,0 +1,12 @@
+{
+  "name": "codex-mic-remote",
+  "version": "0.4.0",
+  "private": true,
+  "description": "A LAN-only paired remote for the ChatGPT desktop app's Codex Voice microphone.",
+  "scripts": {
+    "build:helper": "mkdir -p build && swiftc macos/codex-voice-ax.swift -o build/codex-voice-ax -framework ApplicationServices",
+    "build:app": "node scripts/build-macos-launcher.mjs",
+    "start": "npm run build:helper && node server.mjs",
+    "test": "npm run build:helper && node --test test/*.test.mjs"
+  }
+}

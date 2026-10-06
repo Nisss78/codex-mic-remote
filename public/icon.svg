@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-label="Codex Remote">
+  <defs>
+    <linearGradient id="surface" x1="120" y1="80" x2="900" y2="960" gradientUnits="userSpaceOnUse"><stop stop-color="#fff"/><stop offset="1" stop-color="#e9effb"/></linearGradient>
+    <linearGradient id="blue" x1="390" y1="290" x2="660" y2="735" gradientUnits="userSpaceOnUse"><stop stop-color="#3c7cff"/><stop offset="1" stop-color="#1859e6"/></linearGradient>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="170%"><feDropShadow dx="0" dy="32" stdDeviation="36" flood-color="#163d84" flood-opacity=".16"/></filter>
+  </defs>
+  <rect x="40" y="40" width="944" height="944" rx="244" fill="url(#surface)"/>
+  <rect x="40.5" y="40.5" width="943" height="943" rx="243.5" fill="none" stroke="#dfe6f1"/>
+  <path d="M512 196c-117 0-212 95-212 212v136c0 117 95 212 212 212s212-95 212-212V408c0-117-95-212-212-212Zm0 94c65 0 118 53 118 118v136c0 65-53 118-118 118s-118-53-118-118V408c0-65 53-118 118-118Z" fill="url(#blue)" filter="url(#shadow)"/>
+  <path d="M238 535c0-29 23-52 52-52s52 23 52 52c0 94 76 170 170 170s170-76 170-170c0-29 23-52 52-52s52 23 52 52c0 137-96 251-224 279v62h111c29 0 52 23 52 52s-23 52-52 52H349c-29 0-52-23-52-52s23-52 52-52h111v-62c-128-28-222-142-222-279Z" fill="#17191d"/>
+  <circle cx="735" cy="286" r="57" fill="#246bfe"/><path d="m708 286 19 19 36-42" fill="none" stroke="#fff" stroke-width="20" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
