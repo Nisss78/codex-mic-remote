@@ -30,7 +30,8 @@ test('macOS launcher keeps the server local and QR payload free of session token
   assert.match(source, /api\.github\.com\/repos/);
   assert.match(source, /Nisss78\/codex-mic-remote/);
   assert.match(source, /SHA256/);
-  assert.match(source, /SHA256SUMS\.txt/);
+  assert.match(source, /name\.lowercased\(\)\.hasSuffix\("\.app\.zip"\)/);
+  assert.match(source, /name\.uppercased\(\)\.contains\("SHA256"\)/);
   assert.match(source, /ダウンロードして更新/);
   assert.doesNotMatch(source, /cmr=/);
 });
@@ -43,5 +44,5 @@ test('app build embeds the local server and helper instead of requiring npm at l
   assert.match(build, /NSAllowsLocalNetworking/);
   assert.match(build, /LSMinimumSystemVersion<\/key><string>15\.0/);
   assert.match(build, /AppIcon\.icns/);
-  assert.match(build, /CFBundleShortVersionString<\/key><string>0\.4\.0/);
+  assert.match(build, /CFBundleShortVersionString<\/key><string>0\.4\.1/);
 });

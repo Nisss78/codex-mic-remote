@@ -4,8 +4,6 @@ import CryptoKit
 
 private let serverPort = 8787
 private let updateRepository = "Nisss78/codex-mic-remote"
-private let updateAssetName = "Codex Mic Remote.app.zip"
-private let checksumAssetName = "SHA256SUMS.txt"
 
 private struct GitHubRelease: Decodable {
     struct Asset: Decodable {
@@ -227,8 +225,8 @@ final class CodexMicRemoteLauncher: NSObject, NSApplicationDelegate {
                     self.setState(priorTitle, detail: "最新版です（v\(self.currentVersion)）。")
                     return
                 }
-                guard let archive = release.assets.first(where: { $0.name == updateAssetName }),
-                      let checksums = release.assets.first(where: { $0.name == checksumAssetName }) else {
+                guard let archive = release.assets.first(where: { $0.name.lowercased().hasSuffix(".app.zip") }),
+                      let checksums = release.assets.first(where: { $0.name.uppercased().contains("SHA256") }) else {
                     self.setState("アップデートを確認できません", detail: "v\(version) のアプリ本体またはチェックサムが見つかりません。")
                     return
                 }
@@ -261,10 +259,10 @@ final class CodexMicRemoteLauncher: NSObject, NSApplicationDelegate {
         guard alert.runModal() == .alertFirstButtonReturn else { return }
         updateButton.isEnabled = false
         setState("アップデートをダウンロード中…", detail: "v\(releaseVersion) を確認してからインストールします。")
-        downloadUpdate(archive: archive, checksums: checksums, version: releaseVersion)
+        downloadUpdate(archive: archive, archiveName: archive.lastPathComponent, checksums: checksums, version: releaseVersion)
     }
 
-    private func downloadUpdate(archive: URL, checksums: URL, version: String) {
+    private func downloadUpdate(archive: URL, archiveName: String, checksums: URL, version: String) {
         let group = DispatchGroup()
         var archiveData: Data?
         var checksumData: Data?
@@ -291,7 +289,7 @@ final class CodexMicRemoteLauncher: NSObject, NSApplicationDelegate {
             let actual = SHA256.hash(data: archiveData).map { String(format: "%02x", $0) }.joined()
             let expected = String(data: checksumData, encoding: .utf8)?
                 .split(whereSeparator: \.isNewline)
-                .first(where: { $0.hasSuffix("  \(updateAssetName)") })?
+                .first(where: { $0.hasSuffix("  \(archiveName)") })?
                 .split(separator: " ").first.map(String.init)
             guard actual.caseInsensitiveCompare(expected ?? "") == .orderedSame else {
                 self.updateButton.isEnabled = true
