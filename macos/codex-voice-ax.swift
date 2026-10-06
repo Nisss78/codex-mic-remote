@@ -135,9 +135,26 @@ func findAll(_ element: AXUIElement, depth: Int = 0, where predicate: (AXUIEleme
 }
 
 func findPressableWithExactText(_ root: AXUIElement, _ labels: [String]) -> (AXUIElement, String)? {
-    guard let element = find(root, where: { isPressableControl($0) && hasExactText($0, labels) != nil }),
-          let text = hasExactText(element, labels) else { return nil }
-    return (element, text)
+    if let element = find(root, where: { isPressableControl($0) && hasExactText($0, labels) != nil }),
+       let text = hasExactText(element, labels) {
+        return (element, text)
+    }
+
+    // Recent Codex builds expose the visible label as a static-text child of
+    // the button, instead of on the button itself.  Follow that label back to
+    // its nearest pressable ancestor so the remote remains tied to a visible,
+    // labelled control rather than relying on keyboard shortcuts.
+    for label in findAll(root, where: { hasExactText($0, labels) != nil }) {
+        var current: AXUIElement? = label
+        for _ in 0..<8 {
+            guard let candidate = current else { break }
+            if isPressableControl(candidate), let text = hasExactText(label, labels) {
+                return (candidate, text)
+            }
+            current = element(candidate, kAXParentAttribute as CFString)
+        }
+    }
+    return nil
 }
 
 func findMenuItemWithExactText(_ root: AXUIElement, _ labels: [String]) -> (AXUIElement, String)? {
@@ -161,17 +178,36 @@ func findMicButton(_ root: AXUIElement) -> (AXUIElement, String)? {
 }
 
 func findModelPicker(_ root: AXUIElement) -> AXUIElement? {
-    find(root, where: { element in
+    let direct = find(root, where: { element in
         guard role(element) == kAXButtonRole || role(element) == kAXPopUpButtonRole else { return false }
         return textValues(element).contains { canonicalModel($0) != nil } || hasTextContaining(element, ["model", "モデル"])
     })
+    if direct != nil { return direct }
+    return findPickerContaining(root, labels: ["model", "モデル"], canonicalize: canonicalModel)
 }
 
 func findEffortPicker(_ root: AXUIElement) -> AXUIElement? {
-    find(root, where: { element in
+    let direct = find(root, where: { element in
         guard role(element) == kAXButtonRole || role(element) == kAXPopUpButtonRole else { return false }
         return hasTextContaining(element, ["reasoning", "effort", "推論", "思考", "エフォート"])
-    }) ?? findModelPicker(root) // Current Codex combines model and effort in one popup, e.g. "GPT-5.6 Terra 中".
+    })
+    if direct != nil { return direct }
+    return findPickerContaining(root, labels: ["reasoning", "effort", "推論", "思考", "エフォート"], canonicalize: canonicalEffort)
+        ?? findModelPicker(root) // Current Codex combines model and effort in one popup, e.g. "GPT-5.6 Terra 中".
+}
+
+func findPickerContaining(_ root: AXUIElement, labels: [String], canonicalize: (String) -> String?) -> AXUIElement? {
+    for textElement in findAll(root, where: { element in
+        textValues(element).contains { canonicalize($0) != nil || hasTextContaining(element, labels) }
+    }) {
+        var current: AXUIElement? = textElement
+        for _ in 0..<8 {
+            guard let candidate = current else { break }
+            if role(candidate) == kAXButtonRole || role(candidate) == kAXPopUpButtonRole { return candidate }
+            current = element(candidate, kAXParentAttribute as CFString)
+        }
+    }
+    return nil
 }
 
 func canonical(_ value: String, in values: [String]) -> String? {
@@ -240,15 +276,19 @@ func discoverChoices(_ app: AXUIElement, root: AXUIElement) -> PickerChoices {
 }
 
 func capabilities(_ root: AXUIElement) -> Capabilities {
-    Capabilities(
-        newChat: Capability(available: findPressableWithExactText(root, newChatLabels) != nil,
-                            error: "A visible New chat control was not found."),
-        startVoice: Capability(available: findPressableWithExactText(root, startVoiceLabels) != nil,
-                               error: "A visible Start voice conversation control was not found."),
-        model: Capability(available: findModelPicker(root) != nil,
-                          error: "A visible model picker was not found."),
-        effort: Capability(available: findEffortPicker(root) != nil,
-                           error: "A visible reasoning-effort picker was not found.")
+    let canCreateChat = findPressableWithExactText(root, newChatLabels) != nil
+    let canStartVoice = findPressableWithExactText(root, startVoiceLabels) != nil
+    let canSelectModel = findModelPicker(root) != nil
+    let canSelectEffort = findEffortPicker(root) != nil
+    return Capabilities(
+        newChat: Capability(available: canCreateChat,
+                            error: canCreateChat ? nil : "A visible New chat control was not found."),
+        startVoice: Capability(available: canStartVoice,
+                               error: canStartVoice ? nil : "A visible Start voice conversation control was not found."),
+        model: Capability(available: canSelectModel,
+                          error: canSelectModel ? nil : "A visible model picker was not found."),
+        effort: Capability(available: canSelectEffort,
+                           error: canSelectEffort ? nil : "A visible reasoning-effort picker was not found.")
     )
 }
 

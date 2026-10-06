@@ -160,6 +160,19 @@ async function voice(action = 'status', value) {
   const run = async () => {
     try {
       const args = value ? [action, value] : [action];
+      // The macOS launcher owns the Accessibility permission. In the packaged
+      // app, ask that launcher to spawn the helper so TCC associates the
+      // request with Codex Mic Remote rather than the external Node runtime.
+      if (process.env.CMR_BRIDGE_URL && process.env.CMR_BRIDGE_TOKEN) {
+        const response = await fetch(process.env.CMR_BRIDGE_URL, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', 'x-cmr-bridge': process.env.CMR_BRIDGE_TOKEN },
+          body: JSON.stringify({ args }),
+          signal: AbortSignal.timeout(5000),
+        });
+        if (!response.ok) throw new Error(`Mac helper bridge returned ${response.status}`);
+        return await response.json();
+      }
       const { stdout } = await execFileAsync(helperPath, args, { timeout: 5000 });
       return JSON.parse(stdout);
     } catch (error) {

@@ -1,6 +1,7 @@
 import AppKit
 import CoreImage
 import CryptoKit
+import Network
 
 private let serverPort = 8787
 private let updateRepository = "Nisss78/codex-mic-remote"
@@ -74,6 +75,8 @@ final class CodexMicRemoteLauncher: NSObject, NSApplicationDelegate {
     private var pendingServerOutput = ""
     private var codeExpiryWork: DispatchWorkItem?
     private var verifiedAdminLease: AdminLease?
+    private var helperBridge: NWListener?
+    private let helperBridgeQueue = DispatchQueue(label: "local.codex.mic-remote.helper-bridge")
 
     private var adminFileURL: URL {
         let folder = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
@@ -373,6 +376,11 @@ final class CodexMicRemoteLauncher: NSObject, NSApplicationDelegate {
             startButton.isEnabled = true
             return
         }
+        guard let bridge = startHelperBridge(root: root) else {
+            setState("起動できません", detail: "Mac操作用のローカル補助サービスを開始できません。アプリを開き直してください。")
+            startButton.isEnabled = true
+            return
+        }
 
         let task = Process()
         task.executableURL = URL(fileURLWithPath: node)
@@ -381,6 +389,8 @@ final class CodexMicRemoteLauncher: NSObject, NSApplicationDelegate {
         task.environment = ProcessInfo.processInfo.environment.merging([
             "PORT": String(serverPort),
             "CMR_ADMIN_FILE": adminFileURL.path,
+            "CMR_BRIDGE_URL": bridge.url.absoluteString,
+            "CMR_BRIDGE_TOKEN": bridge.token,
             "PATH": "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin",
         ]) { _, preferred in preferred }
 
@@ -415,6 +425,79 @@ final class CodexMicRemoteLauncher: NSObject, NSApplicationDelegate {
             setState("起動できません", detail: error.localizedDescription)
             startButton.isEnabled = true
         }
+    }
+
+    private struct HelperBridge {
+        let url: URL
+        let token: String
+    }
+
+    private func startHelperBridge(root: URL) -> HelperBridge? {
+        helperBridge?.cancel()
+        let token = randomToken()
+        guard let port = NWEndpoint.Port(rawValue: UInt16(Int.random(in: 49152...65535))) else { return nil }
+        let parameters = NWParameters.tcp
+        parameters.requiredLocalEndpoint = .hostPort(host: .ipv4(.loopback), port: port)
+        do {
+            let listener = try NWListener(using: parameters)
+            listener.newConnectionHandler = { [weak self] connection in
+                guard let self else { connection.cancel(); return }
+                connection.start(queue: self.helperBridgeQueue)
+                connection.receive(minimumIncompleteLength: 1, maximumLength: 65_536) { data, _, _, _ in
+                    let reply = self.helperBridgeReply(data: data, root: root, token: token)
+                    connection.send(content: reply, completion: .contentProcessed { _ in connection.cancel() })
+                }
+            }
+            listener.start(queue: helperBridgeQueue)
+            helperBridge = listener
+            return HelperBridge(url: URL(string: "http://127.0.0.1:\(port.rawValue)/run")!, token: token)
+        } catch {
+            return nil
+        }
+    }
+
+    private func helperBridgeReply(data: Data?, root: URL, token: String) -> Data {
+        guard let data, let request = String(data: data, encoding: .utf8),
+              request.contains("X-Cmr-Bridge: \(token)") || request.contains("x-cmr-bridge: \(token)"),
+              let bodyRange = request.range(of: "\r\n\r\n"),
+              let body = request[bodyRange.upperBound...].data(using: .utf8),
+              let input = try? JSONSerialization.jsonObject(with: body) as? [String: Any],
+              let args = input["args"] as? [String],
+              !args.isEmpty,
+              ["status", "toggle", "new-chat", "start-voice", "choices", "set-model", "set-effort"].contains(args[0]),
+              args.count <= 2 else {
+            return bridgeHTTP(status: 403, body: ["error": "Mac helper bridge rejected the request."])
+        }
+        let helper = root.appendingPathComponent("build/codex-voice-ax")
+        let task = Process()
+        task.executableURL = helper
+        task.arguments = args
+        let output = Pipe()
+        task.standardOutput = output
+        task.standardError = output
+        do {
+            try task.run()
+            let result = output.fileHandleForReading.readDataToEndOfFile()
+            task.waitUntilExit()
+            return bridgeHTTP(status: task.terminationStatus == 0 ? 200 : 500, raw: result)
+        } catch {
+            return bridgeHTTP(status: 500, body: ["error": "Mac helper could not start."])
+        }
+    }
+
+    private func bridgeHTTP(status: Int, body: [String: String]) -> Data {
+        bridgeHTTP(status: status, raw: (try? JSONSerialization.data(withJSONObject: body)) ?? Data("{}".utf8))
+    }
+
+    private func bridgeHTTP(status: Int, raw: Data) -> Data {
+        let header = "HTTP/1.1 \(status) \(status == 200 ? "OK" : "Error")\r\nContent-Type: application/json\r\nContent-Length: \(raw.count)\r\nConnection: close\r\n\r\n"
+        return Data(header.utf8) + raw
+    }
+
+    private func randomToken() -> String {
+        var bytes = [UInt8](repeating: 0, count: 32)
+        _ = SecRandomCopyBytes(kSecRandomDefault, bytes.count, &bytes)
+        return Data(bytes).base64EncodedString()
     }
 
     @objc private func stop() {

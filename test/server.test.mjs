@@ -210,7 +210,7 @@ test('remote page exposes explicit chat, voice, model, and effort controls', asy
   assert.match(page, /id="newChat"/);
   assert.match(page, /id="startVoice"/);
   assert.match(page, /\.utility\.voice:disabled\{border-color:#dfe3e9/);
-  assert.match(page, /アクセシビリティは許可されています。現在のCodex画面には音声会話の開始コントロールがない/);
+  assert.match(page, /現在前面にあるCodex画面では見つかりません/);
   assert.match(page, /現在のCodexウィンドウにはアクティブなVoiceマイクがありません/);
   assert.match(page, /id="model" disabled><option>読み込み中…/);
   assert.match(page, /id="effort" disabled><option>読み込み中…/);
@@ -238,6 +238,7 @@ test('AX helper recognizes the current Codex tab/model popup without treating di
   assert.match(helper, /"新しいタブ"/);
   assert.match(helper, /canonicalModel/);
   assert.match(helper, /GPT-5\.6 Terra 中/);
+  assert.match(helper, /static-text child/);
   assert.match(helper, /kAXFocusedWindowAttribute/);
   assert.match(helper, /request-accessibility/);
   assert.match(helper, /AXIsProcessTrustedWithOptions/);

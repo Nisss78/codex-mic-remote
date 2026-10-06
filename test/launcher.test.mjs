@@ -21,6 +21,9 @@ test('macOS launcher keeps the server local and QR payload free of session token
   assert.match(source, /\/api\/admin\/shutdown/);
   assert.match(source, /X-CMR-Admin/);
   assert.match(source, /readMatchingAdminLease/);
+  assert.match(source, /CMR_BRIDGE_URL/);
+  assert.match(source, /CMR_BRIDGE_TOKEN/);
+  assert.match(source, /requiredLocalEndpoint/);
   assert.match(source, /確認できない、または旧版のプロセス.*安全のため停止しません/is);
   assert.doesNotMatch(source, /kill\(/);
   assert.doesNotMatch(source, /legacyCMRListeningPID/);
@@ -44,5 +47,5 @@ test('app build embeds the local server and helper instead of requiring npm at l
   assert.match(build, /NSAllowsLocalNetworking/);
   assert.match(build, /LSMinimumSystemVersion<\/key><string>15\.0/);
   assert.match(build, /AppIcon\.icns/);
-  assert.match(build, /CFBundleShortVersionString<\/key><string>0\.4\.1/);
+  assert.match(build, /CFBundleShortVersionString<\/key><string>0\.4\.2/);
 });

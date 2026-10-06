@@ -31,8 +31,8 @@ writeFileSync(join(contents, 'Info.plist'), `<?xml version="1.0" encoding="UTF-8
   <key>CFBundleIdentifier</key><string>local.codex.mic-remote</string>
   <key>CFBundleName</key><string>Codex Mic Remote</string>
   <key>CFBundlePackageType</key><string>APPL</string>
-  <key>CFBundleShortVersionString</key><string>0.4.1</string>
-  <key>CFBundleVersion</key><string>5</string>
+  <key>CFBundleShortVersionString</key><string>0.4.2</string>
+  <key>CFBundleVersion</key><string>6</string>
   <key>LSMinimumSystemVersion</key><string>15.0</string>
   <key>NSHighResolutionCapable</key><true/>
   <key>NSAppTransportSecurity</key><dict><key>NSAllowsLocalNetworking</key><true/></dict>
@@ -45,6 +45,7 @@ execFileSync('swiftc', [
   '-o', join(macOS, 'Codex Mic Remote'),
   '-framework', 'Cocoa',
   '-framework', 'CoreImage',
+  '-framework', 'Network',
 ], { stdio: 'inherit' });
 chmodSync(join(macOS, 'Codex Mic Remote'), 0o755);
 chmodSync(join(runtime, 'build', 'codex-voice-ax'), 0o755);
